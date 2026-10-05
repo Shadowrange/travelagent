@@ -1,0 +1,4 @@
+# n8n exports may contain secrets: never commit raw exports
+*.raw.json
+.env
+.DS_Store

@@ -1,0 +1,140 @@
+{
+  "name": "tool-escalate-v3",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "e4-0001",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "record",
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "REPLACE_AIRTABLE_BASE_ID",
+          "mode": "list",
+          "cachedResultName": "Travel Agency CRM"
+        },
+        "table": {
+          "__rl": true,
+          "value": "REPLACE_AIRTABLE_TABLE_ESCALATIONS",
+          "mode": "list",
+          "cachedResultName": "Escalations"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "client_message": "={{ $json.client_message }}",
+            "draft_answer": "={{ $json.draft_answer }}",
+            "tg_user_id": "={{ $json.tg_user_id }}",
+            "tg_username": "={{ $json.tg_username }}"
+          }
+        },
+        "options": {
+          "typecast": true
+        }
+      },
+      "id": "e4-0002",
+      "name": "Save to Airtable",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        240,
+        0
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "REPLACE_CREDENTIAL_ID",
+          "name": "Airtable CRM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const p = $('When Executed by Another Workflow').first().json;\nconst username = p.tg_username ? '@' + p.tg_username : ('ID: ' + (p.tg_user_id || '?'));\nconst clientLink = p.tg_user_id ? 'tg://user?id=' + p.tg_user_id : '';\nconst msg = [\n  '🔔 НОВЫЙ ГОРЯЧИЙ ЛИД',\n  '',\n  '👤 Клиент: ' + username,\n  clientLink ? '💬 Написать: ' + clientLink : '',\n  '',\n  '📋 Запрос клиента:',\n  p.client_message || '—',\n  '',\n  '💡 Черновик ответа Анны:',\n  p.draft_answer || '—',\n  '',\n  '📊 Airtable: https://airtable.com/REPLACE_AIRTABLE_BASE_ID/REPLACE_AIRTABLE_TABLE_ESCALATIONS'\n].filter(x => x !== undefined).join('\\n');\nreturn [{ json: { text: msg } }];"
+      },
+      "id": "e4-0003",
+      "name": "Prepare notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "REPLACE_MANAGER_TG_ID",
+        "text": "={{ $json.text }}",
+        "additionalFields": {}
+      },
+      "id": "e4-0004",
+      "name": "Notify manager",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        0
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_CREDENTIAL_ID",
+          "name": "Telegram Bot"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Save to Airtable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Airtable": {
+      "main": [
+        [
+          {
+            "node": "Prepare notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare notification": {
+      "main": [
+        [
+          {
+            "node": "Notify manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false
+}

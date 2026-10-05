@@ -1,0 +1,94 @@
+{
+  "name": "tool-save-lead",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "e2-0001",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "record",
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "REPLACE_AIRTABLE_BASE_ID",
+          "mode": "list",
+          "cachedResultName": "Travel Agency CRM"
+        },
+        "table": {
+          "__rl": true,
+          "value": "REPLACE_AIRTABLE_TABLE_LEADS",
+          "mode": "list",
+          "cachedResultName": "Leads"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "direction": "={{ $json.direction }}",
+            "dates": "={{ $json.dates }}",
+            "adults": "={{ $json.adults }}",
+            "children": "={{ $json.children }}",
+            "children_ages": "={{ $json.children_ages }}",
+            "city_from": "={{ $json.city_from }}",
+            "budget": "={{ $json.budget }}",
+            "budget_basis": "={{ $json.budget_basis }}",
+            "tour_type": "={{ $json.tour_type }}",
+            "hotel_level": "={{ $json.hotel_level }}",
+            "wishes": "={{ $json.wishes }}",
+            "segment": "={{ $json.segment }}",
+            "channel": "={{ $json.channel }}",
+            "source": "={{ $json.source }}",
+            "search_links": "={{ $json.search_links }}",
+            "tg_user_id": "={{ $json.tg_user_id }}",
+            "profile_json": "={{ $json.profile_json }}",
+            "status": "new"
+          }
+        },
+        "options": {
+          "typecast": true
+        }
+      },
+      "id": "e2-0002",
+      "name": "Airtable Create Lead",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "REPLACE_CREDENTIAL_ID",
+          "name": "Airtable CRM"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Airtable Create Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false
+}

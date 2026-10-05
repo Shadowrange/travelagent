@@ -1,0 +1,370 @@
+{
+  "name": "tool-tourvisor-search",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "7ab886fe-9e49-4bf0-8777-e66a475d85d7",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1040,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.tourvisor.ru/search/api/v1/countries",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOURVISOR_API_TOKEN"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cc156dd6-9dae-4a3c-9a4d-6cfc01272b16",
+      "name": "Get countries",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -864,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.tourvisor.ru/search/api/v1/departures",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOURVISOR_API_TOKEN"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7c8d198e-4783-4f03-aaf3-bd98bf2ada89",
+      "name": "Get departures",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -688,
+        96
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const p = $json;\nconst countries = $('Get countries').all().map(i => i.json);\nconst departures = $('Get departures').all().map(i => i.json);\n\nfunction findId(arr, name, def) {\n  const q = String(name || '').toLowerCase().trim();\n  if (!q) return def;\n  const f = arr.find(x => {\n    const n = String(x.name || '').toLowerCase();\n    return n === q || n.includes(q) || q.includes(n);\n  });\n  return f ? f.id : def;\n}\n\n// дефолтные даты: ближайшее окно вылета, если ИИ/тест не передал\nfunction isoPlus(days) {\n  return new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);\n}\nconst dateFrom = (p.dateFrom && String(p.dateFrom).trim()) || isoPlus(14);\nconst dateTo   = (p.dateTo   && String(p.dateTo).trim())   || isoPlus(28);\n\nconst countryId = findId(countries, p.country, 4);\nconst departureId = findId(departures, p.city_from || 'Москва', 1);\n\nconst params = {\n  departureId: String(departureId),\n  countryId: String(countryId),\n  dateFrom: dateFrom,\n  dateTo: dateTo,\n  nightsFrom: String(p.nightsFrom || 7),\n  nightsTo: String(p.nightsTo || 10),\n  adults: String(p.adults || 2),\n  currency: p.currency || 'RUB',\n  onlyCharter: 'false'\n};\n\nconst enc = encodeURIComponent;\nlet qs = Object.keys(params).map(k => enc(k) + '=' + enc(params[k])).join('&');\n\nString(p.childs || '').split(',').map(s => s.trim()).filter(Boolean)\n  .forEach(a => { qs += '&childs=' + enc(a); });\n\nreturn [{ json: {\n  searchUrl: 'https://api.tourvisor.ru/search/api/v1/tours/search?' + qs,\n  countryId,\n  departureId,\n  dateFrom,\n  dateTo\n} }];"
+      },
+      "id": "82a845cb-1ba8-4589-98a3-4fc32ff0bf41",
+      "name": "Resolve ids + params",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -496,
+        -48
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.searchUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOURVISOR_API_TOKEN"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3024d2f9-c42c-41b5-b4f1-75ff1703c599",
+      "name": "Start search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -336,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r=$json;const id=(r&&r.searchId)||0;const base='https://api.tourvisor.ru/search/api/v1/tours/search/'+id;\nreturn [{json:{searchId:id,statusUrl:base+'/status?operatorStatus=false',resultUrl:base+'?limit=10'}}];"
+      },
+      "id": "03b17f56-5e47-4181-a080-bf22e3896d06",
+      "name": "Init poll",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -208,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 4
+      },
+      "id": "ecf727cd-1e8b-4cb4-8774-9c849d7ac019",
+      "name": "Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -32,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.statusUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOURVISOR_API_TOKEN"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "50e47355-d55f-49cf-a19c-5102d3da56da",
+      "name": "Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        144,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const resp=$json;const init=$('Init poll').first().json;\nconst st=String(resp.status||'').toLowerCase();const prog=resp.progress||0;\nconst finished=st.indexOf('finish')>-1||st.indexOf('закон')>-1||prog>=100||$runIndex>=8;\nreturn [{json:{finished,status:resp.status||'',progress:prog,runIndex:$runIndex,resultUrl:init.resultUrl,statusUrl:init.statusUrl}}];"
+      },
+      "id": "dfe4afda-bc8e-4dc8-987a-6c829c597b10",
+      "name": "Check status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        304,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.finished }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "517d4164-2a04-47a2-b507-e44d8e6127c6",
+      "name": "Finished?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        448,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.resultUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TOURVISOR_API_TOKEN"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f998ab00-8525-43ae-88e5-666975e27fa1",
+      "name": "Get results",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const arr=Array.isArray($json)?$json:($json.hotels||[]);\nconst top=arr.slice(0,3).map((h,i)=>{const t=(h.tours&&h.tours[0])||{};\n const op=(t.operator&&t.operator.russianName)||(t.operator&&t.operator.name)||'';\n const meal=(t.meal&&t.meal.russianName)||'';const reg=(h.region&&h.region.name)||'';\n return `${i+1}. ${h.name}${h.category?(' '+h.category+'*'):''} (${reg}) — от ${h.price} руб.\\n   ${t.nights||''} ноч., ${meal}, оператор ${op}\\n   ${h.hotelDescriptionLink||''}`;\n}).join('\\n\\n');\nreturn [{json:{results_text: top||'Пока без подходящих туров — уточни параметры или предложи передать менеджеру.',count:arr.length}}];"
+      },
+      "id": "96b154cd-5efc-45e8-b78a-aad8dd4ca5f0",
+      "name": "Format top 3",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        64
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Get countries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get countries": {
+      "main": [
+        [
+          {
+            "node": "Get departures",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get departures": {
+      "main": [
+        [
+          {
+            "node": "Resolve ids + params",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve ids + params": {
+      "main": [
+        [
+          {
+            "node": "Start search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start search": {
+      "main": [
+        [
+          {
+            "node": "Init poll",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Init poll": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status": {
+      "main": [
+        [
+          {
+            "node": "Check status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check status": {
+      "main": [
+        [
+          {
+            "node": "Finished?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finished?": {
+      "main": [
+        [
+          {
+            "node": "Get results",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get results": {
+      "main": [
+        [
+          {
+            "node": "Format top 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "active": false
+}

@@ -1,0 +1,50 @@
+{
+  "name": "tool-search-excursions-v2",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "ex2-0001",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Tavily убран намеренно: общий веб-поиск не возвращает конкретные туры с ценой/наличием,\n// только тематические страницы. Для экскурсионных/авторских/премиум направлений нет\n// бесплатного структурированного API уровня Tourvisor, поэтому здесь — честный handoff:\n// инструмент собирает параметры и говорит агенту передать запрос менеджеру на ручной подбор.\nconst p = $json || {};\nconst intent = String(p.intent || 'excursion').toLowerCase();\n\nconst operatorsByIntent = {\n  excursion: 'Дельфин, Tury.ru',\n  author:    'Good Time Travel',\n  premium:   'Sodis',\n  any:       'профильные операторы'\n};\nconst operators = operatorsByIntent[intent] || operatorsByIntent.excursion;\n\nconst collected = [\n  p.destination ? 'Направление: ' + p.destination : '',\n  p.city_from   ? 'Вылет из: ' + p.city_from : '',\n  p.dates       ? 'Даты: ' + p.dates : '',\n  p.duration    ? 'Длительность: ' + p.duration : '',\n  p.adults      ? 'Человек: ' + p.adults : '',\n  p.budget      ? 'Бюджет: ' + p.budget : '',\n  p.query       ? 'Пожелания: ' + p.query : ''\n].filter(Boolean).join('; ');\n\nconst text = 'Это ' + intent + '-запрос. По таким направлениям точный тур с ценой и наличием подбирается вручную (профильные операторы: ' + operators + '). '\n  + 'Не придумывай конкретные туры и не давай ссылок. Скажи клиенту тепло, что подберёшь варианты под его параметры через менеджера, и вызови escalate с собранными данными. '\n  + 'Собранные параметры: ' + (collected || 'не заполнены — добери недостающее перед передачей') + '.';\n\nreturn [{ json: { results_text: text, count: 0, manual: true } }];"
+      },
+      "id": "ex2-0002",
+      "name": "Build handoff",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Build handoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false
+}
